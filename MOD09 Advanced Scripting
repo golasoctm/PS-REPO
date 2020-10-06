@@ -1,0 +1,158 @@
+#Module 09 Advanced scripting
+
+<#
+Script that queires disk information with current credentials. 
+
+		accepts the remote computer name as a parameter. 
+		if no name provided as a parameter, the user should be prompted to enter a computer name.
+		The query for information should use Web Services-Management (WS-MAN) rather than Distributed Component Object Model (DCOM). 
+		Show logical disk information (volumes) rather than physical disk information.Only information for local disks (hard drives) should be included.
+#>
+
+param(
+	[string]$computername=(read-host "Enter computer name"),
+)
+get-ciminstance win32_logicaldisk -computername $computername -filter "drivetype=3"
+
+<#
+You would like to run a script that queries disk information from remote computers. To account for scenarios where the user does not have permission to query disk information on remote server, you are updating the script to accept alternate credentials when specified. The script needs to meet the following requirements: 
+		
+		Accept a switch parameter to indicate whether alternate credentials are required.
+		If alternate credentials are required, gather, and use those credentials.
+#>
+
+param(
+	[string]$computername=(Read-Host "Enter computer name")
+	[Switch]$alternatecredential
+)
+If ($alternatecredential -eq $trie) {
+	$cred = get-credential
+	$session = New-CimSession -computername $computername -Credential $cred
+Get-CimInstance win32_logicaldisk -CimSession $session -Filter "drivetype=3"
+} else {
+    Get-CimInstance win32_logicaldisk -ComputerName $computername -Filter "drivetype=3"
+}
+
+<#
+Create a logging function. The logging function that you are creating has the following requirements:
+
+    Accepts a parameter for the file name for the log file.
+    Accepts a parameter for the folder containing the log file.
+    Accepts a parameter for the data being written to the log file.
+    Adds a timestamp to the data being written to the log file.
+    Appends each log entry to an existing file.
+#>
+
+function write-log {
+    param(
+        [string]$folder,
+        [string]$file,
+        [string]$data
+    )
+
+    #calculate full path for log files
+    $logpath = $folder + $file
+
+    #calculate time stamp for log entry
+    $date = Get-Date
+    $timestamp = $data | outfile $logpath -append
+
+    }
+
+    write-log -folder e:\ -file testlog.txt -data "test log data"
+		
+		<#
+		add error handling to script
+		
+After using the function for a period, you realize that two common errors occur when using the function. First, the folder for the log file needs to have a trailing backslash. Second, the folder might not exist. To address each of these issues:
+
+    Review the folder path provided and add a backslash if necessary.
+    If an error is generated when writing the data to disk, generate a friendly error message.
+
+function write-log {
+    param(
+        [string]$folder,
+        [string]$file,
+        [string]$data
+    )
+
+    #add a backslash to the folder if it is missing
+    $endbackslash = $folder.EndsWith("\")
+    if ($endbackslash -eq $false) {
+        $folder += "\"
+    }
+
+    #calculate full path for log files
+    $logpath = $folder + $file
+
+    #calculate time stamp for log entry
+    $date = Get-Date
+    $timestamp = $date.ToShortDateString() + " " + $date.ToLongTimeString() + ":"
+
+    #write data to log file
+    try {
+        $timestamp + $data | out-file $logpath -Append -erroraction Stop
+    } catch {
+        write-host "error writing to log file $logpath" 
+    }
+}
+write-log -folder c:\ -file testlog.txt -data "test log data"
+
+
+<#Convert a function to a module
+
+Scenario:
+To simplify using the Write-Log function in multiple scripts, you are converting it to a function that any script can access.
+
+#>
+
+#remove line that calls the function
+function write-log {
+    param(
+        [string]$folder,
+        [string]$file,
+        [string]$data
+    )
+
+    #add a backslash to the folder if it is missing
+    $endbackslash = $folder.EndsWith("\")
+    if ($endbackslash -eq $false) {
+        $folder += "\"
+    }
+
+    #calculate full path for log files
+    $logpath = $folder + $file
+
+    #calculate time stamp for log entry
+    $date = Get-Date
+    $timestamp = $date.ToShortDateString() + " " + $date.ToLongTimeString() + ":"
+
+    #write data to log file
+    try {
+        $timestamp + $data | out-file $logpath -Append -erroraction Stop
+    } catch {
+        write-host "error writing to log file $logpath" 
+    }
+}
+
+#save script in new folder eg C:\Program Files\WindowsPowershell**\Modules**\LogFunction. save file as LogFunction.psm1
+
+<# Use background jobs and scheduled jobs
+#start a Windows PowerShell remote job that retrieves a list of physical network adapters from LON-DC1 and LON-SVR1
+invoke-command -scriptblock { get-netadapter -physical } -computername LON-DC1,LON-SVR1 -asjob -jobname remotenetadapt
+
+#start a Windows PowerShell remote job that retrieves a list of Server Message Block (SMB) shares from LON-DC1 and LON-SVR1
+Invoke-Command –ScriptBlock { Get-SMBShare } –ComputerName LON-DC1,LON-SVR1 –AsJob –JobName RemoteShares
+
+#start a Windows PowerShell remote job that retrieves all instances of the Win32_Volume class from every computer in Active Directory Domain Services
+Invoke-Command –ScriptBlock { Get-CimInstance –ClassName Win32_Volume } –ComputerName (Get-ADComputer –Filter * | Select –Expand Name) –AsJob –JobName RemoteDisks
+
+#start a local job that retrieves all entries from the Security event log
+Start-Job –ScriptBlock { Get-EventLog –LogName Security } –Name LocalSecurity
+
+#start a local job that produces 100 directory listings
+Start-Job –ScriptBlock { 1..100 | ForEach-Object { Dir C:\ -Recurse } } –Name LocalDir
+
+
+
+
