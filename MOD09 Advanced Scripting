@@ -156,3 +156,4 @@ Start-Job –ScriptBlock { 1..100 | ForEach-Object { Dir C:\ -Recurse } } –Nam
 
 
 
+.
